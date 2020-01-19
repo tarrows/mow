@@ -1,13 +1,17 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"image"
-	_ "image/jpeg"
-	_ "image/png"
+	"image/jpeg"
+	"image/png"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/image/draw"
 )
 
 func main() {
@@ -17,7 +21,10 @@ func main() {
 	}
 	for _, image := range images {
 		log.Println(image)
-		processImage(image, "data", "dest")
+		err = processImage(image, "data", "dest")
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 }
 
@@ -47,14 +54,14 @@ func listImages(root string) ([]string, error) {
 }
 
 func processImage(name, srcDir, dstDir string) error {
-	file, err := os.Open(filepath.Join(srcDir, name))
-	defer file.Close()
+	srcFile, err := os.Open(filepath.Join(srcDir, name))
+	defer srcFile.Close()
 
 	if err != nil {
 		return err
 	}
 
-	img, imageFormat, err := image.Decode(file)
+	img, imageFormat, err := image.Decode(srcFile)
 	if err != nil {
 		return err
 	}
@@ -62,6 +69,32 @@ func processImage(name, srcDir, dstDir string) error {
 	rect := img.Bounds()
 	log.Println("Format:", imageFormat)
 	log.Printf("(width, height) = (%v, %v)", rect.Dx(), rect.Dy())
+
+	target := image.NewRGBA(image.Rect(0, 0, rect.Dx()/2, rect.Dy()/2))
+
+	draw.CatmullRom.Scale(target, target.Bounds(), img, rect, draw.Over, nil)
+
+	dstFile, err := os.Create(filepath.Join(dstDir, name))
+	defer dstFile.Close()
+
+	if err != nil {
+		return err
+	}
+
+	switch imageFormat {
+	case "jpeg":
+		if err := jpeg.Encode(dstFile, target, &jpeg.Options{Quality: 100}); err != nil {
+			return err
+		}
+	case "png":
+		if err := png.Encode(dstFile, target); err != nil {
+			return err
+		}
+	default:
+		return errors.New(fmt.Sprintf("Format not supported: %v", imageFormat))
+	}
+
+	log.Println("image converted:", name)
 
 	return nil
 }
