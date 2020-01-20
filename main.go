@@ -98,3 +98,24 @@ func processImage(name, srcDir, dstDir string) error {
 
 	return nil
 }
+
+type scaleStyle int
+
+const (
+	PERCENT scaleStyle = iota
+	PIXEL
+)
+
+type scaleOption struct {
+	style scaleStyle
+	x     int
+	y     int
+}
+
+func convertToScaled(src image.Image, option scaleOption) *image.RGBA {
+	rect := src.Bounds()
+	target := image.NewRGBA(image.Rect(0, 0, rect.Dx()/2, rect.Dy()/2))
+	draw.CatmullRom.Scale(target, target.Bounds(), src, rect, draw.Over, nil)
+
+	return target
+}
