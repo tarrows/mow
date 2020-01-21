@@ -66,13 +66,11 @@ func processImage(name, srcDir, dstDir string) error {
 		return err
 	}
 
-	rect := img.Bounds()
+	// rect := img.Bounds()
 	log.Println("Format:", imageFormat)
-	log.Printf("(width, height) = (%v, %v)", rect.Dx(), rect.Dy())
+	// log.Printf("(width, height) = (%v, %v)", rect.Dx(), rect.Dy())
 
-	target := image.NewRGBA(image.Rect(0, 0, rect.Dx()/2, rect.Dy()/2))
-
-	draw.CatmullRom.Scale(target, target.Bounds(), img, rect, draw.Over, nil)
+	target := scale(img, scaleOption{style: PERCENT, x: 50, y: 50})
 
 	dstFile, err := os.Create(filepath.Join(dstDir, name))
 	defer dstFile.Close()
@@ -112,9 +110,21 @@ type scaleOption struct {
 	y     int
 }
 
-func convertToScaled(src image.Image, option scaleOption) *image.RGBA {
+func scale(src image.Image, option scaleOption) *image.RGBA {
 	rect := src.Bounds()
-	target := image.NewRGBA(image.Rect(0, 0, rect.Dx()/2, rect.Dy()/2))
+
+	var x, y int
+
+	switch option.style {
+	case PERCENT:
+		x = rect.Dx() * option.x / 100
+		y = rect.Dy() * option.y / 100
+	case PIXEL:
+		x = option.x
+		y = option.y
+	}
+
+	target := image.NewRGBA(image.Rect(0, 0, x, y))
 	draw.CatmullRom.Scale(target, target.Bounds(), src, rect, draw.Over, nil)
 
 	return target
